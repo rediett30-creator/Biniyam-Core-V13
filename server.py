@@ -1,3 +1,4 @@
+import os
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs
@@ -27,7 +28,7 @@ def load_dotenv(path):
 
 BASE = Path(__file__).parent
 load_dotenv(BASE / ".env")
-PORT = 9500
+PORT = int(os.environ.get("PORT", "9500"))
 
 player = {"id": "demo-player-001", "name": "Demo Player"}
 game_manager = GameManager(BASE / "games")
@@ -352,4 +353,4 @@ if __name__ == "__main__":
     print("LOCAL + PROVIDER MODE — provider-backed games launch through their configured provider.")
     print(f"Loaded {len(game_manager.all())} games from plugins")
     print(f"Loaded {len(provider_manager.all())} providers")
-    ThreadingHTTPServer(("127.0.0.1", PORT), Handler).serve_forever()
+    ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
