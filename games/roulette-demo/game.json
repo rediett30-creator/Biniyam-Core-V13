@@ -1,0 +1,9 @@
+{
+  "id": "roulette-demo",
+  "name": "Roulette Demo",
+  "provider": "biniyam-local",
+  "category": "Table",
+  "status": "local",
+  "commission": 4.0,
+  "icon": "🎰"
+}

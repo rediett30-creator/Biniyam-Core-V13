@@ -1,0 +1,10 @@
+{
+  "id": "casino-api-pro-mines",
+  "name": "Mines — Casino API Pro",
+  "provider": "casino-api-pro",
+  "provider_game_id": "mines",
+  "category": "Instant",
+  "status": "sandbox",
+  "commission": 0.0,
+  "icon": "💣"
+}

@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BINIYAM Core V11</title><link rel="stylesheet" href="/public/styles.css"></head>
+<body><div class="app">
+<header><div class="brand"><span>◆</span> BINIYAM</div><span class="sandbox">V11 · LOCAL + PROVIDER GAMES</span></header>
+<nav><button data-tab="lobby" class="active">Lobby</button><button data-tab="providers">Providers</button><button data-tab="sessions">Sessions</button><button data-tab="ledger">Wallet & Ledger</button><button data-tab="commissions">Commissions</button></nav>
+<main>
+<section id="lobby" class="tab active">
+<div class="hero"><div><small>CORE PLATFORM V6</small><h1>One lobby.<br><b>Many game plugins.</b></h1><p>Games and providers are loaded from independent manifests. Add a plugin without rewriting the lobby.</p></div><div class="wallet"><small>VIRTUAL WALLET</small><strong id="balance">—</strong><span>ETB</span></div></div>
+<div class="bar"><h2>Game catalog</h2><input id="search" placeholder="Search games…"></div><div id="games" class="games"></div>
+</section>
+<section id="providers" class="tab"><div class="title"><h2>Provider layer</h2><p>Each provider declares an adapter. Games map to providers through their plugin manifest.</p></div><div id="providersList" class="provider-grid"></div></section>
+<section id="sessions" class="tab"><div class="title"><h2>Game sessions</h2><p>Local games open inside BINIYAM; provider games create a fresh provider session and redirect to the provider launch URL.</p></div><div id="sessionsList" class="table"></div></section>
+<section id="ledger" class="tab"><div class="title"><h2>Wallet & round ledger</h2><p>Virtual transactions only. Production provider callbacks and real-money wallet controls are intentionally not enabled.</p></div><div id="ledgerList" class="table"></div></section>
+<section id="commissions" class="tab"><div class="title"><h2>Commission engine</h2><p>Commission is calculated per settled virtual round using the game's plugin configuration.</p></div><div id="roundsList" class="table"></div></section>
+</main><div id="toast"></div></div><script src="/public/app.js?v=v13-fixed"></script></body></html>

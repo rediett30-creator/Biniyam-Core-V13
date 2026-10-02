@@ -1,0 +1,6 @@
+{
+  "id": "biniyam-local",
+  "name": "BINIYAM Local Games",
+  "status": "local-virtual",
+  "adapter": "BiniyamLocalAdapter"
+}

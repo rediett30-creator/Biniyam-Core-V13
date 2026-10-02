@@ -1,0 +1,355 @@
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
+from pathlib import Path
+from urllib.parse import urlparse, parse_qs
+import json, uuid, os, random, math
+
+from core.game_manager import GameManager
+from core.provider_manager import ProviderManager
+from core.wallet import VirtualWallet, now
+from core.game_engine import SandboxGameEngine
+from providers.simulator import SimulatorAdapter
+from providers.inout import InOutProviderAdapter
+from providers.casino_api_pro_provider import CasinoApiProAdapter
+from providers.casino_api_pro import test_connection
+from providers.biniyam_local import BiniyamLocalAdapter
+
+
+def load_dotenv(path):
+    if not path.exists():
+        return
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        k, v = line.split("=", 1)
+        os.environ.setdefault(k.strip(), v.strip().strip('"\''))
+
+
+BASE = Path(__file__).parent
+load_dotenv(BASE / ".env")
+PORT = 9500
+
+player = {"id": "demo-player-001", "name": "Demo Player"}
+game_manager = GameManager(BASE / "games")
+provider_manager = ProviderManager(BASE / "providers")
+wallet = VirtualWallet(10000.00)
+engine = SandboxGameEngine()
+sessions = []
+rounds = []
+# In-memory game state for the local Mines demo. It is intentionally play-money only.
+mines_rounds = {}
+
+adapters = {
+    "SimulatorAdapter": SimulatorAdapter(),
+    "InOutProviderAdapter": InOutProviderAdapter(),
+    "CasinoApiProAdapter": CasinoApiProAdapter(),
+    "BiniyamLocalAdapter": BiniyamLocalAdapter(),
+}
+
+
+def public_state():
+    games = game_manager.all()
+    providers = provider_manager.all()
+    counts = {p.id: 0 for p in providers}
+    for game in games:
+        counts[game.provider] = counts.get(game.provider, 0) + 1
+    return {
+        "player": player,
+        "balance": wallet.balance,
+        "currency": "ETB",
+        "mode": "local-virtual",
+        "version": "V13-PROVIDER",
+        "providers": [p.public(counts.get(p.id, 0)) for p in providers],
+        "games": [g.public() for g in games],
+        "sessions": sessions,
+        "rounds": rounds,
+        "ledger": wallet.ledger,
+    }
+
+
+def respond(handler, status, payload):
+    raw = json.dumps(payload, ensure_ascii=False).encode()
+    handler.send_response(status)
+    handler.send_header("Content-Type", "application/json; charset=utf-8")
+    handler.send_header("Cache-Control", "no-store")
+    handler.send_header("Content-Length", str(len(raw)))
+    handler.end_headers()
+    handler.wfile.write(raw)
+
+
+def find_session(session_id):
+    return next((s for s in sessions if s.get("id") == session_id), None)
+
+
+def require_game(game_id, provider="biniyam-local"):
+    game = game_manager.get(game_id)
+    if not game:
+        raise ValueError("game not found")
+    if provider and game.provider != provider:
+        raise ValueError("game is not a local BINIYAM game")
+    return game
+
+
+class Handler(BaseHTTPRequestHandler):
+    def log_message(self, *args):
+        pass
+
+    def do_GET(self):
+        parsed = urlparse(self.path)
+        p = parsed.path
+        if p == "/api/bootstrap":
+            return respond(self, 200, public_state())
+        if p == "/api/health":
+            return respond(self, 200, {"ok": True, "mode": "local+provider", "version": "V13-PROVIDER", "port": PORT})
+        if p == "/api/version":
+            return respond(self, 200, {"version": "V13-PROVIDER", "build": "real-provider-launch", "provider_games": ["casino-api-pro-mines", "goal-jet-casino-api-pro"]})
+        if p == "/api/provider-games":
+            try:
+                from providers.casino_api_pro import list_games
+                return respond(self, 200, {"provider": "casino-api-pro", "games": list_games()})
+            except Exception as exc:
+                return respond(self, 502, {"provider": "casino-api-pro", "ok": False, "error": str(exc)})
+        if p == "/api/casino-test":
+            try:
+                return respond(self, 200, {"provider": "casino-api-pro", **test_connection()})
+            except Exception as exc:
+                return respond(self, 502, {"provider": "casino-api-pro", "ok": False, "error": str(exc)})
+        if p == "/api/reload":
+            game_manager.reload()
+            provider_manager.reload()
+            return respond(self, 200, {
+                "ok": True,
+                "games": len(game_manager.all()),
+                "providers": len(provider_manager.all())
+            })
+        if p == "/api/mines/state":
+            q = parse_qs(parsed.query)
+            sid = q.get("session_id", [""])[0]
+            state = mines_rounds.get(sid)
+            if not state:
+                return respond(self, 200, {"active": False})
+            return respond(self, 200, {"active": True, **mines_public_state(state)})
+        if p == "/":
+            self.path = "/public/index.html"
+            return self.serve_file()
+        if p.startswith("/public/") or p.startswith("/games/"):
+            return self.serve_file()
+        return respond(self, 404, {"error": "not found"})
+
+    def do_POST(self):
+        p = urlparse(self.path).path
+        length = int(self.headers.get("Content-Length", "0"))
+        try:
+            body = json.loads(self.rfile.read(length) or b"{}")
+        except Exception:
+            body = {}
+
+        if p == "/api/session":
+            game = game_manager.get(body.get("game_id"))
+            if not game:
+                return respond(self, 404, {"error": "game not found"})
+            provider = provider_manager.get(game.provider)
+            if not provider:
+                return respond(self, 500, {"error": "provider not configured"})
+            adapter = adapters.get(provider.adapter)
+            if not adapter:
+                return respond(self, 500, {"error": f"adapter not implemented: {provider.adapter}"})
+            try:
+                session = adapter.create_session(player, game)
+            except Exception as exc:
+                return respond(self, 502, {"error": str(exc)})
+            sessions.insert(0, session)
+            wallet.add_ledger("SESSION", 0, f"Opened {game.name} / {game.provider}")
+            return respond(self, 200, {"session": session})
+
+        if p == "/api/provider-session":
+            game = game_manager.get(body.get("game_id"))
+            if not game:
+                return respond(self, 404, {"error": "game not found"})
+            provider = provider_manager.get(game.provider)
+            if not provider:
+                return respond(self, 500, {"error": "provider not configured"})
+            adapter = adapters.get(provider.adapter)
+            if not adapter or not hasattr(adapter, "create_session"):
+                return respond(self, 500, {"error": "provider adapter is not implemented"})
+            try:
+                session = adapter.create_session(player, game)
+            except Exception as exc:
+                return respond(self, 502, {"error": str(exc)})
+            sessions.insert(0, session)
+            return respond(self, 200, {"session": session})
+
+        if p == "/api/bet":
+            game = game_manager.get(body.get("game_id"))
+            try:
+                stake = float(body.get("stake", 0))
+            except Exception:
+                stake = 0
+            if not game or stake <= 0:
+                return respond(self, 400, {"error": "invalid game or stake"})
+            try:
+                wallet.debit(stake, game.name)
+            except ValueError as exc:
+                return respond(self, 400, {"error": str(exc)})
+            round_result = engine.play(game, stake)
+            tx = "BET-" + uuid.uuid4().hex[:10].upper()
+            wallet.ledger[0]["id"] = tx
+            wallet.ledger[0]["note"] = f"{game.name} / {tx}"
+            rounds.insert(0, round_result)
+            if round_result["win"]:
+                wallet.credit(round_result["win"], f"{game.name} / {round_result['id']}")
+            return respond(self, 200, {
+                "round_id": round_result["id"], "tx_id": tx,
+                "stake": stake, "win": round_result["win"], "balance": wallet.balance
+            })
+
+        # ---- Local Mines API: server-authoritative, play-money only ----
+        if p == "/api/mines/start":
+            try:
+                game = require_game("mines")
+                sid = str(body.get("session_id", ""))
+                if not find_session(sid):
+                    raise ValueError("invalid session")
+                if sid in mines_rounds and mines_rounds[sid].get("status") == "ACTIVE":
+                    raise ValueError("a Mines round is already active")
+                stake = float(body.get("stake", 0))
+                mine_count = int(body.get("mines", 3))
+                if stake <= 0:
+                    raise ValueError("stake must be positive")
+                if mine_count < 1 or mine_count > 24:
+                    raise ValueError("mines must be between 1 and 24")
+                wallet.debit(stake, game.name)
+                positions = set(random.sample(range(25), mine_count))
+                state = {
+                    "session_id": sid,
+                    "game_id": game.id,
+                    "stake": round(stake, 2),
+                    "mines": mine_count,
+                    "positions": positions,
+                    "revealed": set(),
+                    "status": "ACTIVE",
+                    "multiplier": 1.0,
+                    "started": now(),
+                }
+                mines_rounds[sid] = state
+                return respond(self, 200, mines_public_state(state))
+            except ValueError as exc:
+                return respond(self, 400, {"error": str(exc)})
+
+        if p == "/api/mines/reveal":
+            sid = str(body.get("session_id", ""))
+            state = mines_rounds.get(sid)
+            if not state or state.get("status") != "ACTIVE":
+                return respond(self, 400, {"error": "no active Mines round"})
+            try:
+                index = int(body.get("index", -1))
+            except Exception:
+                index = -1
+            if index < 0 or index >= 25:
+                return respond(self, 400, {"error": "invalid tile"})
+            if index in state["revealed"]:
+                return respond(self, 400, {"error": "tile already revealed"})
+            if index in state["positions"]:
+                state["revealed"].add(index)
+                state["status"] = "LOST"
+                # Stake was already debited; no credit on a mine.
+                return respond(self, 200, {
+                    **mines_public_state(state),
+                    "hit_mine": True,
+                    "balance": wallet.balance,
+                })
+            state["revealed"].add(index)
+            safe_total = 25 - state["mines"]
+            # Simple transparent play-money multiplier. It rises with each safe tile.
+            state["multiplier"] = round(
+                max(1.0, ((25 - state["mines"]) / max(1, safe_total - len(state["revealed"]) + 1)) * 1.02),
+                2
+            )
+            if len(state["revealed"]) >= safe_total:
+                return self._mines_cashout(sid, automatic=True)
+            return respond(self, 200, {
+                **mines_public_state(state),
+                "hit_mine": False,
+                "balance": wallet.balance,
+            })
+
+        if p == "/api/mines/cashout":
+            sid = str(body.get("session_id", ""))
+            state = mines_rounds.get(sid)
+            if not state or state.get("status") != "ACTIVE":
+                return respond(self, 400, {"error": "no active Mines round"})
+            return self._mines_cashout(sid, automatic=False)
+
+        if p == "/api/reset":
+            wallet.reset()
+            sessions.clear()
+            rounds.clear()
+            mines_rounds.clear()
+            return respond(self, 200, {"ok": True})
+
+        return respond(self, 404, {"error": "not found"})
+
+    def _mines_cashout(self, sid, automatic=False):
+        state = mines_rounds[sid]
+        payout = round(state["stake"] * state["multiplier"], 2)
+        state["status"] = "WON"
+        wallet.credit(payout, f"Mines / {'AUTO ' if automatic else ''}CASHOUT")
+        result = {
+            **mines_public_state(state),
+            "payout": payout,
+            "balance": wallet.balance,
+            "automatic": automatic,
+        }
+        rounds.insert(0, {
+            "id": "RND-" + uuid.uuid4().hex[:10].upper(),
+            "game": "Mines",
+            "provider": "biniyam-local",
+            "stake": state["stake"],
+            "win": payout,
+            "commission": 0,
+            "status": "SETTLED",
+            "time": now(),
+        })
+        return respond(self, 200, result)
+
+    def serve_file(self):
+        path = BASE / urlparse(self.path).path.lstrip("/")
+        if not path.exists() or not path.is_file():
+            return respond(self, 404, {"error": "file not found"})
+        data = path.read_bytes()
+        content_type = {
+            ".html": "text/html; charset=utf-8",
+            ".css": "text/css; charset=utf-8",
+            ".js": "application/javascript; charset=utf-8",
+            ".json": "application/json; charset=utf-8",
+            ".svg": "image/svg+xml",
+            ".png": "image/png",
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+        }.get(path.suffix.lower(), "application/octet-stream")
+        self.send_response(200)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(data)
+
+
+def mines_public_state(state):
+    return {
+        "session_id": state["session_id"],
+        "game_id": state["game_id"],
+        "stake": state["stake"],
+        "mines": state["mines"],
+        "revealed": sorted(state["revealed"]),
+        "status": state["status"],
+        "multiplier": state["multiplier"],
+    }
+
+
+if __name__ == "__main__":
+    print(f"BINIYAM Core V11 — http://127.0.0.1:{PORT}")
+    print("LOCAL + PROVIDER MODE — provider-backed games launch through their configured provider.")
+    print(f"Loaded {len(game_manager.all())} games from plugins")
+    print(f"Loaded {len(provider_manager.all())} providers")
+    ThreadingHTTPServer(("127.0.0.1", PORT), Handler).serve_forever()

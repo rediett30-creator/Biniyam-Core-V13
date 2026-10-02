@@ -1,0 +1,10 @@
+{
+  "id": "casino-api-pro-under-over-7",
+  "name": "Under Over 7",
+  "provider": "casino-api-pro",
+  "provider_game_id": "under-over-7",
+  "category": "Instant",
+  "status": "sandbox",
+  "commission": 0.0,
+  "icon": "🎲"
+}

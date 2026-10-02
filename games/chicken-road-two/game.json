@@ -1,0 +1,9 @@
+{
+  "id": "chicken-road-two",
+  "name": "Chicken Road 2.0",
+  "provider": "biniyam-local",
+  "category": "Crash",
+  "status": "local",
+  "commission": 5.0,
+  "icon": "🐔"
+}

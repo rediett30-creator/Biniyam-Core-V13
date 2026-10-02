@@ -1,0 +1,6 @@
+{
+  "id": "casino-api-pro",
+  "name": "Casino API Pro",
+  "status": "sandbox",
+  "adapter": "CasinoApiProAdapter"
+}

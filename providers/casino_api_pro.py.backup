@@ -1,0 +1,64 @@
+import json, os, urllib.request, urllib.error
+
+BASE_URL = os.getenv('CASINO_API_BASE_URL', 'https://api.casinoapipro.com/v1').rstrip('/')
+
+
+def _request(method, path, payload=None, token=None):
+    data = None if payload is None else json.dumps(payload).encode('utf-8')
+    headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
+    if token:
+        headers['Authorization'] = f'Bearer {token}'
+    req = urllib.request.Request(f'{BASE_URL}{path}', data=data, headers=headers, method=method)
+    try:
+        with urllib.request.urlopen(req, timeout=15) as r:
+            return json.loads(r.read().decode('utf-8'))
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode('utf-8', errors='replace')
+        raise RuntimeError(f'Casino API HTTP {exc.code}: {body[:500]}')
+    except urllib.error.URLError as exc:
+        raise RuntimeError(f'Casino API connection failed: {exc.reason}')
+
+
+def get_access_token():
+    key = os.getenv('CASINO_API_KEY', '').strip()
+    secret = os.getenv('CASINO_API_SECRET', '').strip()
+    if not key or not secret:
+        raise RuntimeError('Casino API credentials are missing. Put CASINO_API_KEY and CASINO_API_SECRET in .env')
+    out = _request('POST', '/auth/token', {'api_key': key, 'api_secret': secret})
+    token = out.get('access_token') or out.get('token')
+    if not token:
+        raise RuntimeError('Casino API did not return an access token')
+    return token
+
+
+def list_games():
+    token = get_access_token()
+    return _request('GET', '/games', token=token)
+
+
+def test_connection():
+    games = list_games()
+    if isinstance(games, dict):
+        items = games.get('games', games.get('data', []))
+    else:
+        items = games
+    return {
+        'ok': True,
+        'game_count': len(items) if isinstance(items, list) else None,
+    }
+
+
+def create_session(player_id, game_id, currency=None, player_name='Demo Player', return_url=None):
+    token = get_access_token()
+    if not currency:
+        currency = os.getenv('CASINO_API_CURRENCY', 'GHS').strip().upper()
+    if not return_url:
+        return_url = os.getenv('BINIYAM_RETURN_URL', 'http://127.0.0.1:9500/')
+    payload = {
+        'game_id': game_id,
+        'player_id': player_id,
+        'currency': currency,
+        'player_name': player_name,
+        'return_url': return_url,
+    }
+    return _request('POST', '/sessions', payload, token=token)

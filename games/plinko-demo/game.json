@@ -1,0 +1,9 @@
+{
+  "id": "plinko-demo",
+  "name": "Plinko Demo",
+  "provider": "biniyam-local",
+  "category": "Arcade",
+  "status": "local",
+  "commission": 4.0,
+  "icon": "🔷"
+}

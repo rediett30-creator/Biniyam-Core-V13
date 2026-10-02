@@ -1,0 +1,10 @@
+{
+  "id": "goal-jet-casino-api-pro",
+  "name": "Goal Jet — Casino API Pro",
+  "provider": "casino-api-pro",
+  "provider_game_id": "goal-jet",
+  "category": "Crash",
+  "status": "sandbox",
+  "commission": 0.0,
+  "icon": "✈️"
+}

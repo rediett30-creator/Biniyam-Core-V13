@@ -1,0 +1,10 @@
+{
+  "id": "casino-api-pro-spin-bottle",
+  "name": "Spin da' Bottle",
+  "provider": "casino-api-pro",
+  "provider_game_id": "spin-bottle",
+  "category": "Instant",
+  "status": "sandbox",
+  "commission": 0.0,
+  "icon": "🎮"
+}

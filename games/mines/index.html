@@ -1,0 +1,32 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BINIYAM Mines</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#071018;color:#eef5f8;font-family:system-ui,sans-serif;min-height:100vh;display:grid;place-items:center}
+.card{width:min(560px,96vw);background:#101a23;border:1px solid #2b3a46;border-radius:20px;padding:18px;box-shadow:0 20px 70px #0009}
+.top{display:flex;justify-content:space-between;gap:10px;align-items:center}.muted{color:#91a0ab}.balance{font-size:24px;font-weight:900}.controls{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0}
+input,select,button{width:100%;padding:12px;border-radius:10px;font:inherit}input,select{background:#0a1219;color:#fff;border:1px solid #334451}button{border:0;background:#35d36c;color:#051009;font-weight:900}
+button.secondary{background:#26343f;color:#fff}.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin-top:14px}.tile{aspect-ratio:1;background:#182632;border:1px solid #314452;color:#fff;border-radius:9px;font-size:20px;font-weight:800}.tile.safe{background:#184c32}.tile.mine{background:#6a2630}.tile:disabled{opacity:1}.status{margin-top:14px;min-height:46px;background:#0a131b;border-radius:10px;padding:11px}.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+@media(max-width:420px){.controls{grid-template-columns:1fr}.card{padding:13px}}
+</style></head>
+<body><div class="card">
+<div class="top"><div><div class="muted">BINIYAM LOCAL</div><h1 style="margin:4px 0">💣 Mines</h1></div><div><div class="muted">Balance</div><div class="balance"><span id="balance">—</span> ETB</div></div></div>
+<div class="controls"><label>Stake<input id="stake" type="number" min="1" step="1" value="50"></label><label>Mines<select id="mines"><option>3</option><option>5</option><option>10</option></select></label></div>
+<div class="actions"><button id="start">Start round</button><button id="cashout" class="secondary" disabled>Cash out</button></div>
+<div id="grid" class="grid"></div><div id="status" class="status">Start a round. Play-money only.</div>
+</div>
+<script>
+const q=new URLSearchParams(location.search), session_id=q.get('session_id');let active=false,revealed=new Set(),mineCount=3;
+const $=s=>document.querySelector(s), money=n=>Number(n||0).toFixed(2);
+async function api(p,o={}){const r=await fetch(p,o),j=await r.json();if(!r.ok)throw Error(j.error||'Request failed');return j}
+function draw(st, minesHit=[]){
+ const grid=$('#grid');grid.innerHTML='';
+ for(let i=0;i<25;i++){const b=document.createElement('button');b.className='tile';b.textContent=revealed.has(i)?'✓':'?';b.disabled=!active||revealed.has(i);b.onclick=()=>reveal(i);grid.appendChild(b)}
+ if(minesHit.length){minesHit.forEach(i=>{const b=grid.children[i];if(b){b.className='tile mine';b.textContent='💣';b.disabled=true}})}
+}
+async function refresh(){const s=await api('/api/bootstrap');$('#balance').textContent=money(s.balance);return s}
+async function start(){try{const r=await api('/api/mines/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_id,stake:Number($('#stake').value),mines:Number($('#mines').value)})});active=true;revealed=new Set(r.revealed);mineCount=r.mines;draw(r);$('#cashout').disabled=false;$('#status').textContent=`Round active · ${r.mines} mines · multiplier ${r.multiplier}x`;await refresh()}catch(e){$('#status').textContent=e.message}}
+async function reveal(i){try{const r=await api('/api/mines/reveal',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_id,index:i})});revealed=new Set(r.revealed);if(r.hit_mine){active=false;$('#cashout').disabled=true;draw(r,[...Array(25).keys()].filter(x=>!revealed.has(x)));$('#status').textContent=`💥 Mine! Round lost. Balance ${money(r.balance)} ETB`;await refresh();return}if(r.status==='WON'){active=false;$('#cashout').disabled=true;draw(r);$('#status').textContent=`🎉 All safe tiles! Paid ${money(r.payout)} ETB`;await refresh();return}draw(r);$('#status').textContent=`Safe! Multiplier ${r.multiplier}x · cashout available`;await refresh()}catch(e){$('#status').textContent=e.message}}
+async function cashout(){try{const r=await api('/api/mines/cashout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_id})});active=false;$('#cashout').disabled=true;draw(r);$('#status').textContent=`💰 Cashed out ${money(r.payout)} ETB at ${r.multiplier}x`;await refresh()}catch(e){$('#status').textContent=e.message}}
+$('#start').onclick=start;$('#cashout').onclick=cashout;draw({});refresh();
+</script></body></html>

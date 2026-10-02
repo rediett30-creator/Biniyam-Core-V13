@@ -1,0 +1,9 @@
+{
+  "id": "mines",
+  "name": "Mines",
+  "provider": "biniyam-local",
+  "category": "Instant",
+  "status": "local",
+  "commission": 0.0,
+  "icon": "💣"
+}

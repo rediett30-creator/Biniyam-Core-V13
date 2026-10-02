@@ -1,0 +1,9 @@
+{
+  "id": "blackjack-demo",
+  "name": "Blackjack Demo",
+  "provider": "biniyam-local",
+  "category": "Table",
+  "status": "local",
+  "commission": 4.0,
+  "icon": "🃏"
+}

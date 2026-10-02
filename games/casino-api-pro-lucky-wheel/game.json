@@ -1,0 +1,10 @@
+{
+  "id": "casino-api-pro-lucky-wheel",
+  "name": "Lucky Wheel",
+  "provider": "casino-api-pro",
+  "provider_game_id": "lucky-wheel",
+  "category": "Instant",
+  "status": "sandbox",
+  "commission": 0.0,
+  "icon": "🎡"
+}

@@ -1,0 +1,9 @@
+{
+  "id": "chicken-coin",
+  "name": "Chicken Coin",
+  "provider": "biniyam-local",
+  "category": "Arcade",
+  "status": "local",
+  "commission": 5.0,
+  "icon": "🐔"
+}

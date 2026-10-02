@@ -1,0 +1,26 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BINIYAM Local Game</title>
+<style>
+body{margin:0;background:#081018;color:#f2f6f8;font-family:system-ui,sans-serif;display:grid;place-items:center;min-height:100vh}
+.card{width:min(520px,92vw);background:#111b24;border:1px solid #2b3945;border-radius:18px;padding:24px;box-shadow:0 20px 60px #0008}
+h1{margin-top:0}.muted{color:#8fa0ad}.balance{font-size:28px;font-weight:800}.green{color:#55e080}
+input,button{width:100%;box-sizing:border-box;padding:13px;border-radius:10px;margin-top:10px;font:inherit}
+input{background:#0a1219;border:1px solid #33424f;color:white}button{border:0;background:#35d36c;color:#06100a;font-weight:900}
+#result{margin-top:16px;padding:12px;border-radius:10px;background:#0b131a;min-height:24px}
+</style></head>
+<body><div class="card">
+<div class="muted">BINIYAM LOCAL GAME</div><h1 id="title">Loading…</h1>
+<p class="muted">This is a first-party play-money game shell. Replace this page with your own game implementation without changing the lobby.</p>
+<div>Virtual balance</div><div class="balance"><span id="balance">—</span> ETB</div>
+<label>Stake (ETB)<input id="stake" type="number" min="1" step="1" value="50"></label>
+<button id="play">Play round</button><div id="result">Ready.</div>
+</div>
+<script>
+const params=new URLSearchParams(location.search), session_id=params.get('session_id'), game_id=location.pathname.split('/').filter(Boolean)[1];
+const $=s=>document.querySelector(s), money=n=>Number(n||0).toFixed(2);
+async function api(p,o={}){const r=await fetch(p,o),j=await r.json();if(!r.ok)throw Error(j.error||'Request failed');return j}
+async function refresh(){const s=await api('/api/bootstrap');$('#balance').textContent=money(s.balance);const g=s.games.find(x=>x.id===game_id);$('#title').textContent=g?.name||game_id}
+$('#play').onclick=async()=>{try{const stake=Number($('#stake').value);if(!(stake>0))throw Error('Enter a stake');const r=await api('/api/bet',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({game_id,stake})});$('#result').textContent=`Round ${r.round_id}: ${money(r.win)} ETB virtual win. Balance: ${money(r.balance)} ETB`;await refresh()}catch(e){$('#result').textContent=e.message}};
+refresh();
+</script></body></html>

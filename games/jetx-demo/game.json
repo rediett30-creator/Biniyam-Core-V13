@@ -1,0 +1,9 @@
+{
+  "id": "jetx-demo",
+  "name": "JetX Demo",
+  "provider": "biniyam-local",
+  "category": "Crash",
+  "status": "local",
+  "commission": 5.0,
+  "icon": "🚀"
+}
