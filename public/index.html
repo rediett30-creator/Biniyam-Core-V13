@@ -1,17 +1,258 @@
 <!doctype html>
-<html lang="en"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>BINIYAM Core V11</title><link rel="stylesheet" href="/public/styles.css"></head>
-<body><div class="app">
-<header><div class="brand"><span>◆</span> BINIYAM</div><span class="sandbox">V11 · LOCAL + PROVIDER GAMES</span></header>
-<nav><button data-tab="lobby" class="active">Lobby</button><button data-tab="providers">Providers</button><button data-tab="sessions">Sessions</button><button data-tab="ledger">Wallet & Ledger</button><button data-tab="commissions">Commissions</button></nav>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BINIYAM</title>
+<link rel="stylesheet" href="/public/styles.css?v=v15">
+</head>
+
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-dot"></span>
+    <strong>BINIYAM</strong>
+  </div>
+
+  <div class="balance-card">
+    <span>Balance</span>
+    <strong id="balance">0.00 ETB</strong>
+  </div>
+</header>
+
+<nav class="main-nav">
+  <button class="active" data-tab="lobby">🎮 Games</button>
+  <button data-tab="providers">Providers</button>
+  <button data-tab="sessions">Sessions</button>
+  <button data-tab="ledger">Wallet</button>
+  <button data-tab="profile">Profile</button>
+</nav>
+
 <main>
+
 <section id="lobby" class="tab active">
-<div class="hero"><div><small>CORE PLATFORM V6</small><h1>One lobby.<br><b>Many game plugins.</b></h1><p>Games and providers are loaded from independent manifests. Add a plugin without rewriting the lobby.</p></div><div class="wallet"><small>VIRTUAL WALLET</small><strong id="balance">—</strong><span>ETB</span></div></div>
-<div class="bar"><h2>Game catalog</h2><input id="search" placeholder="Search games…"></div><div id="games" class="games"></div>
+
+  <div class="hero">
+    <div class="hero-small">BINIYAM GAMING</div>
+    <h1>Featured Games</h1>
+    <p>Discover games from our local and provider-powered collection.</p>
+  </div>
+
+  <input
+    id="search"
+    class="search"
+    type="search"
+    placeholder="🔎 Search games..."
+  >
+
+  <div class="title">
+    <h2>⭐ Featured Games</h2>
+    <p>Explore our available games.</p>
+  </div>
+
+  <div id="games" class="games"></div>
+
 </section>
-<section id="providers" class="tab"><div class="title"><h2>Provider layer</h2><p>Each provider declares an adapter. Games map to providers through their plugin manifest.</p></div><div id="providersList" class="provider-grid"></div></section>
-<section id="sessions" class="tab"><div class="title"><h2>Game sessions</h2><p>Local games open inside BINIYAM; provider games create a fresh provider session and redirect to the provider launch URL.</p></div><div id="sessionsList" class="table"></div></section>
-<section id="ledger" class="tab"><div class="title"><h2>Wallet & round ledger</h2><p>Virtual transactions only. Production provider callbacks and real-money wallet controls are intentionally not enabled.</p></div><div id="ledgerList" class="table"></div></section>
-<section id="commissions" class="tab"><div class="title"><h2>Commission engine</h2><p>Commission is calculated per settled virtual round using the game's plugin configuration.</p></div><div id="roundsList" class="table"></div></section>
-</main><div id="toast"></div></div><script src="/public/app.js?v=v13-fixed"></script></body></html>
+
+
+<section id="providers" class="tab" style="display:none">
+
+  <div class="title">
+    <h2>Game Providers</h2>
+    <p>Providers connected to BINIYAM.</p>
+  </div>
+
+  <div id="providersList"></div>
+
+</section>
+
+
+<section id="sessions" class="tab" style="display:none">
+
+  <div class="title">
+    <h2>Game Sessions</h2>
+    <p>Your recent game sessions.</p>
+  </div>
+
+  <div id="sessionsList"></div>
+
+</section>
+
+
+<section id="ledger" class="tab" style="display:none">
+
+  <div class="title">
+    <h2>Wallet</h2>
+    <p>Your balance and transaction history.</p>
+  </div>
+
+  <div class="wallet-actions">
+    <button class="action-btn" data-tab="deposit">💳 Deposit</button>
+    <button class="action-btn" data-tab="ledger">📋 Transactions</button>
+  </div>
+
+  <div class="wallet-balance">
+    <span>Available Balance</span>
+    <strong id="walletBalance">0.00 ETB</strong>
+  </div>
+
+  <h3>Transaction History</h3>
+  <div id="ledgerList"></div>
+
+  <h3>Game Rounds</h3>
+  <div id="roundsList"></div>
+
+</section>
+
+
+<section id="profile" class="tab" style="display:none">
+
+  <div class="title">
+    <h2>Profile</h2>
+    <p>Your BINIYAM account.</p>
+  </div>
+
+  <div class="profile-card">
+
+    <div class="row">
+      <strong>Account</strong>
+      <span>BINIYAM Player</span>
+    </div>
+
+    <div class="row">
+      <strong>Currency</strong>
+      <span>ETB / USD</span>
+    </div>
+
+    <div class="row">
+      <strong>Platform</strong>
+      <span class="status">Online</span>
+    </div>
+
+  </div>
+
+  <div class="profile-menu">
+
+    <button class="menu-btn" data-tab="deposit">
+      <span>💳</span>
+      <div>
+        <strong>Deposit</strong>
+        <small>Add funds through the supported payment process.</small>
+      </div>
+    </button>
+
+    <button class="menu-btn" data-tab="ledger">
+      <span>👛</span>
+      <div>
+        <strong>Wallet</strong>
+        <small>View balance and transaction history.</small>
+      </div>
+    </button>
+
+    <button class="menu-btn" data-tab="leaderboard">
+      <span>🏆</span>
+      <div>
+        <strong>Leaderboard</strong>
+        <small>View player rankings.</small>
+      </div>
+    </button>
+
+  </div>
+
+</section>
+
+
+<section id="deposit" class="tab" style="display:none">
+
+  <div class="title">
+    <h2>Deposit Request</h2>
+    <p>Submit a payment request for review.</p>
+  </div>
+
+  <div class="form-card">
+
+    <label>Payment Method</label>
+    <select id="depositMethod">
+      <option value="">Select payment method</option>
+      <option value="telebirr">Telebirr</option>
+      <option value="cbe">CBE</option>
+    </select>
+
+    <div id="depositDestination" class="deposit-destination" style="display:none">
+      <div class="destination-title">Payment Destination</div>
+      <div class="destination-row">
+        <span>Account</span>
+        <strong id="depositAccount">—</strong>
+        <button type="button" id="copyDepositAccount" class="copy-btn">Copy</button>
+      </div>
+      <div class="destination-row">
+        <span>Account Name</span>
+        <strong id="depositAccountName">—</strong>
+      </div>
+      <p class="form-note">
+        Complete the payment using the destination above, then enter your
+        transaction reference below and submit the request for verification.
+      </p>
+    </div>
+
+    <label>Amount</label>
+    <input id="depositAmount" type="number" min="1" step="0.01"
+           placeholder="Enter amount">
+
+    <label>Payment Reference</label>
+    <input id="depositReference" type="text"
+           placeholder="Enter payment/reference number">
+
+    <label>Confirmation Information</label>
+    <textarea id="depositNote"
+              placeholder="Enter payment confirmation information"></textarea>
+
+    <button id="depositSubmit" class="primary-btn">
+      Submit Deposit Request
+    </button>
+
+    <p class="form-note">
+      Deposit requests remain pending until they are independently verified.
+      Submitting a request does not automatically change the wallet balance.
+    </p>
+
+  </div>
+
+  <button class="back-btn" data-tab="profile">← Back to Profile</button>
+
+</section>
+
+
+<section id="leaderboard" class="tab" style="display:none">
+
+  <div class="title">
+    <h2>🏆 Leaderboard</h2>
+    <p>Player ranking area.</p>
+  </div>
+
+  <div class="provider">
+    <div class="row">
+      <strong>#1</strong>
+      <span>BINIYAM Player</span>
+    </div>
+
+    <div class="row">
+      <strong>Status</strong>
+      <span>Coming soon</span>
+    </div>
+  </div>
+
+  <button class="back-btn" data-tab="profile">← Back to Profile</button>
+
+</section>
+
+
+<div id="toast" class="toast" style="display:none"></div>
+
+</main>
+
+<script src="/public/app.js?v=v15"></script>
+
+</body>
+</html>

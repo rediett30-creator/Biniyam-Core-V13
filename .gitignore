@@ -2,3 +2,11 @@
 *.log
 __pycache__/
 *.pyc
+
+# Local runtime and backup files
+data/deposit_requests.json
+data/deposit_requests.backup.json
+*.backup
+*.before-*
+*.ui-backup
+.env.*

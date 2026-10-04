@@ -40,6 +40,23 @@ rounds = []
 # In-memory game state for the local Mines demo. It is intentionally play-money only.
 mines_rounds = {}
 
+DEPOSIT_FILE = BASE / "data" / "deposit_requests.json"
+
+def load_deposit_requests():
+    try:
+        if not DEPOSIT_FILE.exists():
+            return []
+        data = json.loads(DEPOSIT_FILE.read_text(encoding="utf-8"))
+        return data if isinstance(data, list) else []
+    except Exception:
+        return []
+
+def save_deposit_requests(requests):
+    DEPOSIT_FILE.parent.mkdir(parents=True, exist_ok=True)
+    tmp = DEPOSIT_FILE.with_suffix(".tmp")
+    tmp.write_text(json.dumps(requests, indent=2), encoding="utf-8")
+    tmp.replace(DEPOSIT_FILE)
+
 adapters = {
     "SimulatorAdapter": SimulatorAdapter(),
     "InOutProviderAdapter": InOutProviderAdapter(),
@@ -100,6 +117,18 @@ class Handler(BaseHTTPRequestHandler):
         p = parsed.path
         if p == "/api/bootstrap":
             return respond(self, 200, public_state())
+
+        if p == "/api/deposit-info":
+            return respond(self, 200, {
+                "telebirr": {
+                    "account": os.environ.get("TELEBIRR_ACCOUNT", ""),
+                    "name": os.environ.get("TELEBIRR_ACCOUNT_NAME", "")
+                },
+                "cbe": {
+                    "account": os.environ.get("CBE_ACCOUNT", ""),
+                    "name": os.environ.get("CBE_ACCOUNT_NAME", "")
+                }
+            })
         if p == "/api/health":
             return respond(self, 200, {"ok": True, "mode": "local+provider", "version": "V13-PROVIDER", "port": PORT})
         if p == "/api/version":
@@ -144,6 +173,56 @@ class Handler(BaseHTTPRequestHandler):
             body = json.loads(self.rfile.read(length) or b"{}")
         except Exception:
             body = {}
+
+        if p == "/api/deposit-requests":
+            method = str(body.get("method", "")).strip().lower()
+            reference = str(body.get("reference", "")).strip()
+            note = str(body.get("note", "")).strip()
+
+            try:
+                amount = round(float(body.get("amount", 0)), 2)
+            except Exception:
+                amount = 0
+
+            if method not in ("telebirr", "cbe"):
+                return respond(self, 400, {"error": "invalid payment method"})
+
+            if amount <= 0:
+                return respond(self, 400, {"error": "invalid amount"})
+
+            if not reference:
+                return respond(self, 400, {"error": "payment reference is required"})
+
+            requests = load_deposit_requests()
+
+            request_id = "DEP-" + uuid.uuid4().hex[:10].upper()
+
+            request = {
+                "id": request_id,
+                "user_id": player["id"],
+                "user_name": player["name"],
+                "method": method,
+                "amount": amount,
+                "reference": reference,
+                "note": note,
+                "status": "PENDING",
+                "created_at": now()
+            }
+
+            requests.insert(0, request)
+            save_deposit_requests(requests)
+
+            print(
+                f"\n[DEPOSIT REQUEST] {request_id} | "
+                f"user={player['id']} | method={method.upper()} | "
+                f"amount={amount:.2f} ETB | reference={reference} | "
+                f"status=PENDING"
+            )
+
+            return respond(self, 201, {
+                "ok": True,
+                "request": request
+            })
 
         if p == "/api/session":
             game = game_manager.get(body.get("game_id"))

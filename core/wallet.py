@@ -34,6 +34,13 @@ class VirtualWallet:
         self.balance = round(self.balance + amount, 2)
         self.add_ledger("WIN", amount, note)
 
+    def deposit_credit(self, amount, note, txid=None):
+        amount = float(amount)
+        if amount <= 0:
+            raise ValueError("amount must be positive")
+        self.balance = round(self.balance + amount, 2)
+        self.add_ledger("DEPOSIT", amount, note, txid)
+
     def reset(self):
         self.balance = self.starting_balance
         self.ledger.clear()
