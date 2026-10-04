@@ -365,7 +365,7 @@ document.addEventListener("input", (event) => {
 
 });
 
-document.addEventListener("click", (event) => {
+document.addEventListener("click", async (event) => {
 
   if (event.target.id !== "depositSubmit") {
     return;
